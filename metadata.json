@@ -1,0 +1,6 @@
+{
+  "name": "PennyPilot",
+  "description": "An elegant personal finance manager featuring budget tracking, transaction list, visual trend charts, and a smart client-side or server-proxied AI financial advisor.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
