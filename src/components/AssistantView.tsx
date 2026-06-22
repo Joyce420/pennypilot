@@ -51,16 +51,40 @@ export const AssistantView: React.FC<AssistantViewProps> = ({
     '固定订阅服务该如何精简？'
   ];
 
-  // Dynamic calculations for report cards
-  const totalExpense = transactions
-    .filter((tx) => tx.type === 'expense')
+  // Filter to current month
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const monthTxs = transactions.filter(tx => tx.date.startsWith(currentMonth));
+
+  const totalExpense = monthTxs
+    .filter(tx => tx.type === 'expense')
     .reduce((sum, tx) => sum + tx.amount, 0);
 
   const budgetRatio = budget.total > 0 ? Math.min(100, (totalExpense / budget.total) * 100) : 0;
 
-  // Render vertical bento columns representation
-  const categoriesBrief = ['餐', '娱', '行', '物', '他'];
-  const columnRatios = ['h-[85%]', 'h-[45%]', 'h-[60%]', 'h-[30%]', 'h-[15%]'];
+  // Per-category spending for current month
+  const categorySpendMap: Record<string, number> = {};
+  monthTxs.filter(tx => tx.type === 'expense').forEach(tx => {
+    categorySpendMap[tx.category] = (categorySpendMap[tx.category] || 0) + tx.amount;
+  });
+
+  // Top 5 categories sorted by amount
+  const topCategories = Object.entries(categorySpendMap)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  const maxCatAmount = topCategories[0]?.[1] || 1;
+
+  // Bar chart: use real category names and proportional heights
+  const barData = topCategories.length > 0
+    ? topCategories.map(([cat, amt]) => ({
+        label: cat.slice(0, 1),
+        ratio: Math.max(8, Math.round((amt / maxCatAmount) * 85)),
+      }))
+    : [{ label: '空', ratio: 8 }];
+
+  // Top spending category alert
+  const topCat = topCategories[0];
+  const secondCat = topCategories[1];
 
   const handleSendMessage = async (textToSend?: string) => {
     const text = (textToSend || inputText).trim();
@@ -187,7 +211,7 @@ export const AssistantView: React.FC<AssistantViewProps> = ({
                 <div className="flex justify-between items-start">
                   <div>
                     <span className="text-[10px] text-white/70 font-semibold uppercase tracking-wider font-sans">本月消费预测</span>
-                    <h3 className="text-3xl font-extrabold tracking-tight font-mono mt-0.5">¥3,450.00</h3>
+                    <h3 className="text-3xl font-extrabold tracking-tight font-mono mt-0.5">¥{totalExpense.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
                   </div>
                   <span className="bg-white/20 select-none px-2.5 py-1 rounded-lg text-[10px] font-bold font-sans">AI 实时分析中</span>
                 </div>
@@ -225,39 +249,64 @@ export const AssistantView: React.FC<AssistantViewProps> = ({
                 </div>
 
                 <div className="flex items-end gap-3 h-28 px-3">
-                  {categoriesBrief.map((brief, ix) => (
-                    <div key={brief} className="flex-1 flex flex-col items-center gap-2 group">
+                  {barData.map((item) => (
+                    <div key={item.label} className="flex-1 flex flex-col items-center gap-2 group">
                       <div className="w-full bg-primary-light rounded-t-lg relative h-[70px] flex items-end">
-                        <div 
-                          className={`w-full bg-primary rounded-t-lg transition-all ${columnRatios[ix]}`}
+                        <div
+                          className="w-full bg-primary rounded-t-lg transition-all"
+                          style={{ height: `${item.ratio}%` }}
                         ></div>
                       </div>
-                      <span className="text-[10px] font-bold text-gray-400 font-sans">{brief}</span>
+                      <span className="text-[10px] font-bold text-gray-400 font-sans">{item.label}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Redundant alert boxes */}
-              <div className="p-4 bg-red-50/50 border border-red-100 rounded-[20px] space-y-1.5 flex flex-col justify-between">
-                <div className="w-8 h-8 rounded-lg bg-red-100 text-red-600 flex items-center justify-center">
-                  <Utensils className="w-4.5 h-4.5" />
+              {/* Dynamic alert boxes based on real data */}
+              {topCat ? (
+                <div className="p-4 bg-red-50/50 border border-red-100 rounded-[20px] space-y-1.5 flex flex-col justify-between">
+                  <div className="w-8 h-8 rounded-lg bg-red-100 text-red-600 flex items-center justify-center">
+                    <Utensils className="w-4.5 h-4.5" />
+                  </div>
+                  <h5 className="font-extrabold text-xs text-red-950 font-sans">{topCat[0]}支出最高</h5>
+                  <p className="text-[10px] text-red-900/80 leading-relaxed font-sans">
+                    本月{topCat[0]}累计 ¥{topCat[1].toFixed(2)}，占总支出 {totalExpense > 0 ? ((topCat[1] / totalExpense) * 100).toFixed(0) : 0}%，是当前最大开销项。
+                  </p>
                 </div>
-                <h5 className="font-extrabold text-xs text-red-950 font-sans">外卖比例稍高？</h5>
-                <p className="text-[10px] text-red-900/80 leading-relaxed font-sans">
-                  餐饮支出累计达 ¥890。尝试本周增加 2 次在家做饭，可轻松节省约 ¥300 元花销。
-                </p>
-              </div>
+              ) : (
+                <div className="p-4 bg-green-50/50 border border-green-100 rounded-[20px] space-y-1.5 flex flex-col justify-between">
+                  <div className="w-8 h-8 rounded-lg bg-green-100 text-green-600 flex items-center justify-center">
+                    <Utensils className="w-4.5 h-4.5" />
+                  </div>
+                  <h5 className="font-extrabold text-xs text-green-950 font-sans">本月暂无支出</h5>
+                  <p className="text-[10px] text-green-900/80 leading-relaxed font-sans">
+                    记录第一笔账后，这里会显示你的消费分析。
+                  </p>
+                </div>
+              )}
 
-              <div className="p-4 bg-orange-50/50 border border-orange-100 rounded-[20px] space-y-1.5 flex flex-col justify-between">
-                <div className="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center">
-                  <Film className="w-4.5 h-4.5" />
+              {secondCat ? (
+                <div className="p-4 bg-orange-50/50 border border-orange-100 rounded-[20px] space-y-1.5 flex flex-col justify-between">
+                  <div className="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center">
+                    <Film className="w-4.5 h-4.5" />
+                  </div>
+                  <h5 className="font-extrabold text-xs text-orange-950 font-sans">{secondCat[0]}第二高</h5>
+                  <p className="text-[10px] text-orange-900/80 leading-relaxed font-sans">
+                    本月{secondCat[0]}花了 ¥{secondCat[1].toFixed(2)}。问问 AI 有没有节省空间？
+                  </p>
                 </div>
-                <h5 className="font-extrabold text-xs text-orange-950 font-sans">冗余自动续费</h5>
-                <p className="text-[10px] text-orange-900/80 leading-relaxed font-sans">
-                  检测到 2 个功能高度重叠的视频会员自动代扣款，小秘书建议清理不常用的流出项目。
-                </p>
-              </div>
+              ) : (
+                <div className="p-4 bg-orange-50/50 border border-orange-100 rounded-[20px] space-y-1.5 flex flex-col justify-between">
+                  <div className="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center">
+                    <Film className="w-4.5 h-4.5" />
+                  </div>
+                  <h5 className="font-extrabold text-xs text-orange-950 font-sans">省钱小技巧</h5>
+                  <p className="text-[10px] text-orange-900/80 leading-relaxed font-sans">
+                    记账后 AI 会自动分析你的消费习惯，给出个性化建议。
+                  </p>
+                </div>
+              )}
             </section>
 
             {/* Savings challenge banner card */}
@@ -269,9 +318,9 @@ export const AssistantView: React.FC<AssistantViewProps> = ({
                 <h4 className="text-xs font-bold text-gray-900">7天无外卖绿色省钱挑战</h4>
                 <div className="mt-2 flex items-center gap-2">
                   <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-primary rounded-full" style={{ width: '42%' }}></div>
+                    <div className="h-full bg-primary rounded-full" style={{ width: `${Math.min(100, (monthTxs.length / 7) * 100)}%` }}></div>
                   </div>
-                  <span className="text-[10px] text-gray-400 font-bold font-mono">3 / 7天</span>
+                  <span className="text-[10px] text-gray-400 font-bold font-mono">{Math.min(monthTxs.length, 7)} / 7笔</span>
                 </div>
               </div>
               <button 
