@@ -25,6 +25,8 @@ interface HomeViewProps {
   budgetTotal: number;
   onNavigate: (tab: 'home' | 'bills' | 'budget' | 'ai') => void;
   onOpenAdd: () => void;
+  onLogout: () => void;
+  userEmail: string;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({
@@ -35,6 +37,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   budgetTotal,
   onNavigate,
   onOpenAdd,
+  onLogout,
+  userEmail,
 }) => {
   // Get recent 3 transactions
   const recentTransactions = [...transactions]
@@ -179,6 +183,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </div>
             <h1 className="text-xl font-bold text-primary tracking-tight font-sans">PennyPilot</h1>
           </div>
+          <button
+            onClick={onLogout}
+            title={userEmail}
+            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-400 transition-colors text-xs font-bold"
+          >
+            退
+          </button>
         </div>
       </header>
 
