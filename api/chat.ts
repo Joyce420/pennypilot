@@ -1,15 +1,5 @@
-import { GoogleGenAI } from "@google/genai";
-
-const API_KEY = process.env.GEMINI_API_KEY;
-
-let ai: GoogleGenAI | null = null;
-if (API_KEY && API_KEY !== "MY_GEMINI_API_KEY" && API_KEY !== "") {
-  try {
-    ai = new GoogleGenAI({ apiKey: API_KEY });
-  } catch {
-    // will fall back to local engine
-  }
-}
+const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY;
+const GEMINI_KEY = process.env.GEMINI_API_KEY;
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
@@ -53,16 +43,52 @@ ${budgetsSummary}
 
 回答要求：语气亲和，逻辑清晰，使用 Markdown，多用断落、粗体及数字列表，不说教，只关注用户真实数字。`;
 
-  if (ai) {
-    try {
-      const contents: any[] = [];
-      if (Array.isArray(history)) {
-        history.slice(-8).forEach((msg: any) => {
-          contents.push({ role: msg.role === "model" ? "model" : "user", parts: [{ text: msg.text }] });
-        });
-      }
-      contents.push({ role: "user", parts: [{ text: message }] });
+  // Build message history
+  const messages: any[] = [{ role: "system", content: systemInstruction }];
+  if (Array.isArray(history)) {
+    history.slice(-8).forEach((msg: any) => {
+      messages.push({ role: msg.role === "model" ? "assistant" : "user", content: msg.text });
+    });
+  }
+  messages.push({ role: "user", content: message });
 
+  // Try DeepSeek first
+  if (DEEPSEEK_KEY) {
+    try {
+      const resp = await fetch("https://api.deepseek.com/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${DEEPSEEK_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "deepseek-chat",
+          messages,
+          temperature: 0.7,
+          max_tokens: 1024,
+        }),
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        const text = data.choices?.[0]?.message?.content;
+        if (text) {
+          res.json({ text });
+          return;
+        }
+      }
+    } catch {
+      // fall through
+    }
+  }
+
+  // Try Gemini as fallback
+  if (GEMINI_KEY) {
+    try {
+      const { GoogleGenAI } = await import("@google/genai");
+      const ai = new GoogleGenAI({ apiKey: GEMINI_KEY });
+      const contents = messages
+        .filter(m => m.role !== "system")
+        .map(m => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] }));
       const response = await ai.models.generateContent({
         model: "gemini-2.0-flash",
         contents,
@@ -71,7 +97,7 @@ ${budgetsSummary}
       res.json({ text: response.text || "抱歉，稍微有些走神了，能再说一遍吗？" });
       return;
     } catch {
-      // fall through to local engine
+      // fall through
     }
   }
 
