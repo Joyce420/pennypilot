@@ -1,21 +1,75 @@
 import React, { useState } from 'react';
-import { 
+import {
   Sparkles,
   Lightbulb,
   TrendingUp,
-  Utensils, 
-  Car, 
-  ShoppingBag, 
-  Gamepad2, 
-  Home, 
-  HeartPulse, 
-  Briefcase, 
+  Utensils,
+  Car,
+  ShoppingBag,
+  Gamepad2,
+  Home,
+  HeartPulse,
+  Briefcase,
   HelpCircle,
   Edit2,
   Check,
   X
 } from 'lucide-react';
 import { Transaction, BudgetState, CategoryBudget } from '../types';
+
+const CATEGORY_COLORS: Record<string, string> = {
+  '餐饮': '#f97316',
+  '交通': '#3b82f6',
+  '购物': '#a855f7',
+  '娱乐': '#ec4899',
+  '住房': '#f59e0b',
+  '医疗': '#14b8a6',
+  '工资': '#1a6b4a',
+  '其他': '#9ca3af',
+};
+
+interface DonutSlice { label: string; value: number; color: string; }
+
+const DonutChart: React.FC<{ slices: DonutSlice[]; total: number }> = ({ slices, total }) => {
+  const cx = 80, cy = 80, r = 68, ir = 46;
+  let angle = -Math.PI / 2;
+  const paths = slices.map((s) => {
+    const sweep = (s.value / total) * 2 * Math.PI;
+    const a0 = angle, a1 = angle + sweep;
+    angle = a1;
+    const lg = sweep > Math.PI ? 1 : 0;
+    const cos0 = Math.cos(a0), sin0 = Math.sin(a0);
+    const cos1 = Math.cos(a1), sin1 = Math.sin(a1);
+    const d = [
+      `M ${cx + r * cos0} ${cy + r * sin0}`,
+      `A ${r} ${r} 0 ${lg} 1 ${cx + r * cos1} ${cy + r * sin1}`,
+      `L ${cx + ir * cos1} ${cy + ir * sin1}`,
+      `A ${ir} ${ir} 0 ${lg} 0 ${cx + ir * cos0} ${cy + ir * sin0}`,
+      'Z',
+    ].join(' ');
+    return { d, color: s.color, label: s.label, pct: Math.round((s.value / total) * 100) };
+  });
+
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <svg viewBox="0 0 160 160" width={160} height={160} className="overflow-visible">
+        {paths.map((p, i) => (
+          <path key={i} d={p.d} fill={p.color} className="transition-all" />
+        ))}
+        <text x="80" y="75" textAnchor="middle" fontSize="9" fill="#9ca3af" fontWeight="700" fontFamily="sans-serif">本月支出</text>
+        <text x="80" y="93" textAnchor="middle" fontSize="14" fill="#111827" fontWeight="800" fontFamily="monospace">¥{total.toFixed(0)}</text>
+      </svg>
+      <div className="flex flex-wrap gap-x-4 gap-y-2 justify-center">
+        {paths.map((p) => (
+          <div key={p.label} className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
+            <span className="text-[10px] font-bold text-gray-600 font-sans">{p.label} {p.pct}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 interface BudgetViewProps {
   transactions: Transaction[];
@@ -312,6 +366,26 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
             </div>
           </div>
         </section>
+
+        {/* Donut chart — spending distribution */}
+        {(() => {
+          const slices: DonutSlice[] = Object.entries(categorySpent)
+            .filter(([, v]) => v > 0)
+            .map(([label, value]) => ({
+              label,
+              value,
+              color: CATEGORY_COLORS[label] ?? '#9ca3af',
+            }))
+            .sort((a, b) => b.value - a.value);
+          const chartTotal = slices.reduce((s, x) => s + x.value, 0);
+          if (slices.length === 0) return null;
+          return (
+            <section className="bg-white rounded-[24px] p-5 shadow-[0px_4px_24px_rgba(0,0,0,0.03)] border border-gray-100">
+              <h3 className="font-bold text-[16px] text-gray-900 font-sans mb-4">消费分布</h3>
+              <DonutChart slices={slices} total={chartTotal} />
+            </section>
+          );
+        })()}
 
         {/* Budgets breakdown details */}
         <section className="space-y-4 pt-1">
