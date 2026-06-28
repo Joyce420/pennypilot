@@ -37,21 +37,34 @@ export const AddRecordView: React.FC<AddRecordViewProps> = ({
   const [amount, setAmount] = useState<string>('');
   const [category, setCategory] = useState<string>('餐饮');
   const [payment, setPayment] = useState<string>('支付宝');
+
+  const handleSetType = (t: TransactionType) => {
+    setType(t);
+    setCategory(t === 'income' ? '工资' : '餐饮');
+  };
   const [date, setDate] = useState<string>(todayDate);
   const [note, setNote] = useState<string>('');
   const [aiSuggestCategory, setAiSuggestCategory] = useState<string | null>(null);
 
-  // Available categories definition
-  const categoriesList: { name: string; icon: string; theme: string }[] = [
+  const expenseCategoriesList: { name: string; icon: string; theme: string }[] = [
     { name: '餐饮', icon: 'restaurant', theme: 'bg-orange-50 text-orange-600 ring-orange-400' },
     { name: '交通', icon: 'commute', theme: 'bg-blue-50 text-blue-600 ring-blue-400' },
     { name: '购物', icon: 'shopping', theme: 'bg-purple-50 text-purple-600 ring-purple-400' },
     { name: '娱乐', icon: 'sports_esports', theme: 'bg-pink-50 text-pink-600 ring-pink-400' },
     { name: '住房', icon: 'home', theme: 'bg-amber-50 text-amber-600 ring-amber-400' },
     { name: '医疗', icon: 'medical_services', theme: 'bg-teal-50 text-teal-600 ring-teal-400' },
-    { name: '工资', icon: 'payments', theme: 'bg-emerald-50 text-primary ring-emerald-400' },
     { name: '其他', icon: 'category', theme: 'bg-gray-50 text-gray-600 ring-gray-400' },
   ];
+
+  const incomeCategoriesList: { name: string; icon: string; theme: string }[] = [
+    { name: '工资', icon: 'payments', theme: 'bg-emerald-50 text-primary ring-emerald-400' },
+    { name: '兼职', icon: 'payments', theme: 'bg-teal-50 text-teal-600 ring-teal-400' },
+    { name: '理财', icon: 'payments', theme: 'bg-blue-50 text-blue-600 ring-blue-400' },
+    { name: '红包', icon: 'category', theme: 'bg-red-50 text-red-500 ring-red-400' },
+    { name: '其他', icon: 'category', theme: 'bg-gray-50 text-gray-600 ring-gray-400' },
+  ];
+
+  const categoriesList = type === 'income' ? incomeCategoriesList : expenseCategoriesList;
 
   const paymentMethodsList: { name: string; type: string }[] = [
     { name: '支付宝', type: 'alipay' },
@@ -182,23 +195,23 @@ export const AddRecordView: React.FC<AddRecordViewProps> = ({
       <main className="flex-1 max-w-md mx-auto w-full px-5 space-y-6 pt-2">
         {/* Type Switcher Segmented bar */}
         <div className="bg-gray-100/80 p-1.5 rounded-2xl flex items-center h-12.5 relative shadow-inner">
-          <button 
+          <button
             type="button"
-            onClick={() => setType('expense')}
+            onClick={() => handleSetType('expense')}
             className={`flex-1 h-full rounded-xl text-xs font-bold font-sans tracking-wide transition-all duration-300 ${
-              type === 'expense' 
-                ? 'bg-white text-primary shadow-md shadow-gray-200/50' 
+              type === 'expense'
+                ? 'bg-white text-primary shadow-md shadow-gray-200/50'
                 : 'text-gray-500 hover:text-gray-800'
             }`}
           >
             支出
           </button>
-          <button 
+          <button
             type="button"
-            onClick={() => setType('income')}
+            onClick={() => handleSetType('income')}
             className={`flex-1 h-full rounded-xl text-xs font-bold font-sans tracking-wide transition-all duration-300 ${
-              type === 'income' 
-                ? 'bg-white text-primary shadow-md shadow-gray-200/50' 
+              type === 'income'
+                ? 'bg-white text-primary shadow-md shadow-gray-200/50'
                 : 'text-gray-500 hover:text-gray-800'
             }`}
           >
