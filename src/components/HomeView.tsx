@@ -1,19 +1,20 @@
-import React from 'react';
-import { 
-  Wallet, 
-  TrendingUp, 
-  Bot, 
-  ChevronRight, 
-  Utensils, 
-  Car, 
-  ShoppingBag, 
-  Gamepad2, 
-  Home, 
-  HeartPulse, 
-  Briefcase, 
+import React, { useState } from 'react';
+import {
+  Wallet,
+  TrendingUp,
+  Bot,
+  ChevronRight,
+  ChevronLeft,
+  Utensils,
+  Car,
+  ShoppingBag,
+  Gamepad2,
+  Home,
+  HeartPulse,
+  Briefcase,
   HelpCircle,
   PlusCircle,
-  Plus
+  Plus,
 } from 'lucide-react';
 import { Transaction } from '../types';
 
@@ -113,45 +114,40 @@ export const HomeView: React.FC<HomeViewProps> = ({
     }
   };
 
-  // Get last 7 calendar days of dynamic transactions data
+  const [weekOffset, setWeekOffset] = useState(0); // 0 = current week, -1 = last week, etc.
+
+  const localDateStr = (d: Date) => {
+    const y = d.getFullYear();
+    const mo = String(d.getMonth() + 1).padStart(2, '0');
+    const da = String(d.getDate()).padStart(2, '0');
+    return `${y}-${mo}-${da}`;
+  };
+
+  const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
   const last7DaysData = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
-    d.setDate(d.getDate() - (6 - i)); // From 6 days ago up to today
-    
-    // Format to YYYY-MM-DD in local time
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const dateString = `${year}-${month}-${day}`;
-    
-    // Day name (e.g. 周一, 周二)
-    const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-    const label = weekdays[d.getDay()];
-
-    // Calculate expense for this date
+    d.setDate(d.getDate() - (6 - i) + weekOffset * 7);
+    const dateString = localDateStr(d);
     const amount = transactions
       .filter((tx) => tx.date === dateString && tx.type === 'expense')
       .reduce((sum, tx) => sum + tx.amount, 0);
-
-    return {
-      date: dateString,
-      label,
-      amount,
-    };
+    return { date: dateString, label: weekdays[d.getDay()], amount };
   });
+
+  // Date range label for the header
+  const rangeStart = last7DaysData[0].date.slice(5).replace('-', '/');
+  const rangeEnd = last7DaysData[6].date.slice(5).replace('-', '/');
+  const rangeLabel = weekOffset === 0 ? '近7日' : `${rangeStart} - ${rangeEnd}`;
 
   const maxSpent = Math.max(...last7DaysData.map((d) => d.amount), 0);
   const trendPoints = last7DaysData.map((dayData) => {
-    let ht = '4%'; // Default baseline for zero spent
+    let ht = '4%';
     if (maxSpent > 0 && dayData.amount > 0) {
-      // Scale spent dynamically between 16% and 90%
       const pct = 16 + (dayData.amount / maxSpent) * 74;
       ht = `${pct.toFixed(0)}%`;
     }
-    return {
-      ...dayData,
-      heightStyle: ht,
-    };
+    return { ...dayData, heightStyle: ht };
   });
 
   const formatTrendAmount = (amt: number) => {
@@ -243,7 +239,32 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <TrendingUp className="w-4.5 h-4.5 text-primary" />
               <h3 className="font-bold text-[16px] text-gray-900 font-sans">支出趋势</h3>
             </div>
-            <span className="text-xs font-semibold text-gray-400 font-sans px-2.5 py-1 bg-gray-50 rounded-full">近7日</span>
+            <div className="flex items-center gap-1">
+              {weekOffset < 0 && (
+                <button
+                  onClick={() => setWeekOffset(0)}
+                  className="text-[10px] font-bold text-primary bg-primary-light px-2 py-0.5 rounded-full mr-1"
+                >
+                  今
+                </button>
+              )}
+              <button
+                onClick={() => setWeekOffset(w => w - 1)}
+                className="p-1 hover:bg-gray-100 rounded-full text-gray-400 transition-all"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              <span className="text-xs font-semibold text-gray-400 font-sans px-2 py-1 bg-gray-50 rounded-full min-w-[4.5rem] text-center">
+                {rangeLabel}
+              </span>
+              <button
+                onClick={() => setWeekOffset(w => Math.min(0, w + 1))}
+                className={`p-1 rounded-full transition-all ${weekOffset < 0 ? 'hover:bg-gray-100 text-gray-400' : 'text-gray-200 cursor-not-allowed'}`}
+                disabled={weekOffset >= 0}
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
 
           <div className="h-36 flex items-end justify-between gap-3 px-1">
