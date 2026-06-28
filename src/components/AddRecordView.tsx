@@ -1,24 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  X, 
-  Utensils, 
-  Car, 
-  ShoppingBag, 
-  Gamepad2, 
-  Home, 
-  HeartPulse, 
-  Briefcase, 
+import {
+  X,
+  Utensils,
+  Car,
+  ShoppingBag,
+  Gamepad2,
+  Home,
+  HeartPulse,
+  Briefcase,
   HelpCircle,
   Calendar,
   Sparkles,
   Check,
-  Tag
+  Tag,
+  PlusCircle,
 } from 'lucide-react';
 import { Transaction, TransactionType, Category, PaymentMethod } from '../types';
 
 interface AddRecordViewProps {
   onClose: () => void;
   onSave: (tx: Omit<Transaction, 'id'>) => void;
+  onSaveAndContinue?: (tx: Omit<Transaction, 'id'>) => Promise<boolean>;
 }
 
 const formatLocalDate = (date: Date): string => {
@@ -31,6 +33,7 @@ const formatLocalDate = (date: Date): string => {
 export const AddRecordView: React.FC<AddRecordViewProps> = ({
   onClose,
   onSave,
+  onSaveAndContinue,
 }) => {
   const todayDate = formatLocalDate(new Date());
   const [type, setType] = useState<TransactionType>('expense');
@@ -154,27 +157,29 @@ export const AddRecordView: React.FC<AddRecordViewProps> = ({
     setNote((prev) => (prev ? prev + ' · ' + tag : tag));
   };
 
-  const handleSaveExpense = () => {
+  const buildTxData = () => {
     const val = parseFloat(amount);
-    if (isNaN(val) || val <= 0) {
-      alert('请输入合法的记账金额！');
-      return;
-    }
-
+    if (isNaN(val) || val <= 0) return null;
     const now = new Date();
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const timeStr = `${hours}:${minutes}`;
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    return { amount: val, note: note || category, category, payment, date, time: timeStr, type };
+  };
 
-    onSave({
-      amount: val,
-      note: note || category,
-      category,
-      payment,
-      date,
-      time: timeStr,
-      type
-    });
+  const handleSaveExpense = () => {
+    const tx = buildTxData();
+    if (!tx) { alert('请输入合法的记账金额！'); return; }
+    onSave(tx);
+  };
+
+  const handleSaveAndContinueClick = async () => {
+    const tx = buildTxData();
+    if (!tx) { alert('请输入合法的记账金额！'); return; }
+    const ok = await onSaveAndContinue?.(tx);
+    if (ok) {
+      setAmount('');
+      setNote('');
+      setAiSuggestCategory(null);
+    }
   };
 
   return (
@@ -362,15 +367,24 @@ export const AddRecordView: React.FC<AddRecordViewProps> = ({
         </div>
       </main>
 
-      {/* Floating full-width Save Trigger bottom widget */}
-      <div className="px-5 max-w-md mx-auto w-full mt-4">
-        <button 
+      {/* Bottom buttons */}
+      <div className="px-5 max-w-md mx-auto w-full mt-4 flex flex-col gap-2.5">
+        <button
           onClick={handleSaveExpense}
           className="w-full h-13.5 bg-primary hover:bg-primary/95 text-white active:scale-[0.98] transition-all font-bold text-xs tracking-wider rounded-2xl shadow-xl shadow-primary/25 cursor-pointer flex items-center justify-center gap-1.5"
         >
           <Check className="w-4 h-4" />
           <span>保存本笔记录</span>
         </button>
+        {onSaveAndContinue && (
+          <button
+            onClick={handleSaveAndContinueClick}
+            className="w-full h-11 bg-primary-light hover:bg-primary/10 text-primary active:scale-[0.98] transition-all font-bold text-xs tracking-wider rounded-2xl cursor-pointer flex items-center justify-center gap-1.5 border border-primary/15"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>继续记下一笔</span>
+          </button>
+        )}
       </div>
     </div>
   );

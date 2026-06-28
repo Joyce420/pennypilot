@@ -107,10 +107,9 @@ export default function App() {
     setDataLoading(false);
   };
 
-  const handleSaveTransaction = async (txData: Omit<Transaction, 'id'>) => {
-    if (!user) return;
+  const insertTransaction = async (txData: Omit<Transaction, 'id'>): Promise<Transaction | null> => {
+    if (!user) return null;
     const newTx: Transaction = { ...txData, id: `tx-${Date.now()}` };
-
     const { error } = await supabase.from('transactions').insert({
       id: newTx.id,
       user_id: user.id,
@@ -122,14 +121,30 @@ export default function App() {
       time: newTx.time,
       type: newTx.type,
     });
+    if (error) return null;
+    setTransactions(prev => [newTx, ...prev]);
+    return newTx;
+  };
 
-    if (!error) {
-      setTransactions(prev => [newTx, ...prev]);
+  const handleSaveTransaction = async (txData: Omit<Transaction, 'id'>) => {
+    const tx = await insertTransaction(txData);
+    if (tx) {
       setIsAddOpen(false);
       triggerToast('🎉 妥啦！账单记录已成功存入账簿。', 'success');
       setTimeout(() => setActiveTab('bills'), 300);
     } else {
       triggerToast('保存失败，请重试', 'danger');
+    }
+  };
+
+  const handleSaveAndContinue = async (txData: Omit<Transaction, 'id'>): Promise<boolean> => {
+    const tx = await insertTransaction(txData);
+    if (tx) {
+      triggerToast('✅ 已记录，继续下一笔！', 'success');
+      return true;
+    } else {
+      triggerToast('保存失败，请重试', 'danger');
+      return false;
     }
   };
 
@@ -316,6 +331,7 @@ export default function App() {
         <AddRecordView
           onClose={() => setIsAddOpen(false)}
           onSave={handleSaveTransaction}
+          onSaveAndContinue={handleSaveAndContinue}
         />
       )}
     </div>
